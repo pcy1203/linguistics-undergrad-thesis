@@ -1,4 +1,4 @@
-﻿group,item,trialType,condition,wh-type,stimuli,wh-response-matrix,wh-response-embedded,yn-response-embedded,yn-response-indefinite
+group,item,trialType,condition,wh-type,stimuli,wh-response-matrix,wh-response-embedded,yn-response-embedded,yn-response-indefinite
 A,1,target,NI-NS,어디서,코치는 민재가 어디서 다리를 다쳤다고 설명했니?,기자회견에서 설명했어.,훈련장에서 다리를 다쳤다고 설명했어.,"응, 민재가 다리를 다친 장소가 어딘지 설명했어.","응, 다리를 다쳤다고 설명했어."
 B,1,target,NI-SS,어디서,코치는 어디서 민재가 다리를 다쳤다고 설명했니?,기자회견에서 설명했어.,훈련장에서 다리를 다쳤다고 설명했어.,"응, 민재가 다리를 다친 장소가 어딘지 설명했어.","응, 다리를 다쳤다고 설명했어."
 C,1,target,NI-LS,어디서,어디서 코치는 민재가 다리를 다쳤다고 설명했니?,기자회견에서 설명했어.,훈련장에서 다리를 다쳤다고 설명했어.,"응, 민재가 다리를 다친 장소가 어딘지 설명했어.","응, 다리를 다쳤다고 설명했어."
