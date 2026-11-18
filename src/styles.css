@@ -527,6 +527,17 @@ p {
   place-items: center;
 }
 
+.code-chip {
+  margin-top: 12px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ------------------------------------------------------------ mobile */
 
 @media (max-width: 767px) {

@@ -6,7 +6,7 @@ export const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 
 /** Apps Script 웹 앱 주소 (VITE_LOG_ENDPOINT 환경변수가 있으면 그쪽이 우선) */
 const DEFAULT_LOG_ENDPOINT =
-  'https://script.google.com/macros/s/AKfycbz5drzmLzW9NnCZTc2o-bABn3AwHHvVingH3qCGN4-3lyzjwoaKol_mreAAroGD9Wrb/exec';
+  'https://script.google.com/macros/s/AKfycby2kU43OsMFFOZOKFJ7QPGr10wvRQAUcR0xM8D2m7Gibe0Q7HHAyB1ZTms6Z0BusOKX/exec';
 
 export const CONFIG = {
   /** Apps Script 웹 앱 URL. 비어 있으면 로그를 콘솔에만 출력합니다. */
@@ -21,6 +21,8 @@ export const CONFIG = {
 const params = new URLSearchParams(window.location.search);
 /** ?test=1 : 로그에 is_test=TRUE 로 표시되고 집단 균형 계산에서 빠집니다. */
 export const IS_TEST = params.get('test') === '1';
+/** ?reset=1 : 이 브라우저에 저장된 진행 기록을 지우고 처음부터 시작 (연구자·테스트용) */
+export const RESET = params.get('reset') === '1';
 /** ?group=C : 집단을 강제로 지정 (테스트용) */
 export const FORCED_GROUP = (() => {
   const g = (params.get('group') ?? '').toUpperCase();

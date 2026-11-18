@@ -14,7 +14,7 @@ export function Transition({ onNext }: { onNext: () => void }) {
   );
 }
 
-export function Done() {
+export function Done({ code }: { code: string }) {
   return (
     <Page center>
       <div className="center-block">
@@ -28,7 +28,23 @@ export function Done() {
           lines={['실험 참여 기록이 정상적으로 제출되었습니다.', '긴 시간 성실히 참여해 주셔서 감사합니다.']}
           className="body"
         />
+        <div className="code-chip">참여 번호 {code}</div>
       </div>
+    </Page>
+  );
+}
+
+export function Resume({ meta, onContinue }: { meta: string; onContinue: () => void }) {
+  return (
+    <Page center>
+      <div className="center-block">
+        <h1 className="title">진행하던 실험이 있습니다.</h1>
+        <Lines lines={['멈춘 곳부터 이어서 진행합니다.']} className="body" />
+        {meta && <div className="code-chip">{meta}</div>}
+      </div>
+      <Actions center>
+        <Button onClick={onContinue}>이어서 하기</Button>
+      </Actions>
     </Page>
   );
 }

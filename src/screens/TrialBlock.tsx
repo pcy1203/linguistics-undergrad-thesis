@@ -6,28 +6,39 @@ import type { AnswerLog, TrialLog } from '../lib/log';
 interface Props {
   exp: ExpId;
   trials: Trial[];
-  onComplete: (logs: TrialLog[], times: { startedAt: string; finishedAt: string }) => void;
+  /** 복구 시 이어서 시작할 문항 번호(0부터) */
+  startIndex: number;
+  /** 세션이 끊겼을 때 풀고 있던 문항 번호 — 이 문항의 기록에 resumed 표시 */
+  resumedIndex: number | null;
+  onTrialDone: (log: TrialLog) => void;
+  onComplete: () => void;
 }
 
-export function TrialBlock({ exp, trials, onComplete }: Props) {
-  const [index, setIndex] = useState(0);
-  const logs = useRef<TrialLog[]>([]);
-  const startedAt = useRef(new Date().toISOString());
+export function TrialBlock({ exp, trials, startIndex, resumedIndex, onTrialDone, onComplete }: Props) {
+  const [index, setIndex] = useState(startIndex);
+
+  // 모든 문항을 마친 직후 끊겼다가 복구된 경우
+  useEffect(() => {
+    if (index >= trials.length) onComplete();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
+  if (index >= trials.length) return null;
 
   const handleDone = (log: TrialLog) => {
-    logs.current.push(log);
+    onTrialDone(log);
     if (index + 1 < trials.length) setIndex(index + 1);
-    else onComplete(logs.current, { startedAt: startedAt.current, finishedAt: new Date().toISOString() });
+    else onComplete();
   };
 
-  const trial = trials[index];
   return (
     <TrialScreen
       key={`${exp}-${index}`}
       exp={exp}
-      trial={trial}
+      trial={trials[index]}
       order={index + 1}
       total={trials.length}
+      resumed={index === resumedIndex}
       onDone={handleDone}
     />
   );
@@ -38,12 +49,14 @@ function TrialScreen({
   trial,
   order,
   total,
+  resumed,
   onDone,
 }: {
   exp: ExpId;
   trial: Trial;
   order: number;
   total: number;
+  resumed: boolean;
   onDone: (log: TrialLog) => void;
 }) {
   const [ratings, setRatings] = useState<(number | null)[]>(() => trial.answers.map(() => null));
@@ -103,7 +116,7 @@ function TrialScreen({
       nClicks: stats.current[i].n,
       clicks: stats.current[i].clicks,
     }));
-    onDone({ trial, order, onsetAt: onsetAt.current, durationMs: elapsed(), answers });
+    onDone({ trial, order, onsetAt: onsetAt.current, durationMs: elapsed(), answers, resumed });
   };
 
   return (
