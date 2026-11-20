@@ -6,7 +6,7 @@ export const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 
 /** Apps Script 웹 앱 주소 (VITE_LOG_ENDPOINT 환경변수가 있으면 그쪽이 우선) */
 const DEFAULT_LOG_ENDPOINT =
-  'https://script.google.com/macros/s/AKfycbz5drzmLzW9NnCZTc2o-bABn3AwHHvVingH3qCGN4-3lyzjwoaKol_mreAAroGD9Wrb/exec';
+  'https://script.google.com/macros/s/AKfycbwKbjHGnh8W03ckWb0zw00_SDox5LI2kQPXYf1VJKEbAQwfXT1Z2D__bkWVSmZi6mBC/exec';
 
 export const CONFIG = {
   /** Apps Script 웹 앱 URL. 비어 있으면 로그를 콘솔에만 출력합니다. */
