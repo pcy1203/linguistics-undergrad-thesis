@@ -370,6 +370,91 @@ p {
   color: var(--text-3);
 }
 
+/* 답변을 하나씩 보여 주는 카드 */
+.carousel {
+  gap: 14px;
+}
+
+.carousel__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.carousel__pos {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.dots i.is-done {
+  background: var(--primary);
+}
+
+.dots i.is-current {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #9db3c6;
+}
+
+.arrow {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.arrow:disabled {
+  color: var(--text-disabled);
+  border-color: var(--border);
+  cursor: default;
+}
+
+.carousel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: carousel-in 0.18s ease;
+}
+
+.carousel__body .answer__text {
+  min-height: 3.1em;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@keyframes carousel-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ------------------------------------------------------------ actions */
 
 .actions {

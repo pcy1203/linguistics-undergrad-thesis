@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Actions, AnswerCard, Button, Page, QuestionBox } from '../components/ui';
+import { Actions, AnswerCarousel, Button, Page, QuestionBox, type NavVia } from '../components/ui';
+import { EXPS } from '../config';
 import type { ExpId, Trial } from '../lib/design';
 import type { AnswerLog, TrialLog } from '../lib/log';
 
@@ -44,6 +45,22 @@ export function TrialBlock({ exp, trials, startIndex, resumedIndex, onTrialDone,
   );
 }
 
+interface AnswerStat {
+  /** 이 답변이 처음 화면에 나타난 시점 (문항 제시 기준 ms) */
+  shownAt: number | null;
+  views: number;
+  /** 아래 세 값은 이 답변이 처음 나타난 시점 기준 ms */
+  first: number | null;
+  final: number | null;
+  /** 마지막으로 누른 시점 (문항 제시 기준 ms) */
+  finalTrial: number | null;
+  n: number;
+  /** 누른 기록: 문항 제시 기준 ms 와 고른 점수 */
+  clicks: { t: number; v: number }[];
+  /** ‹ 로 돌아와서 점수를 바꿨는지 */
+  changedOnRevisit: boolean;
+}
+
 function TrialScreen({
   exp,
   trial,
@@ -60,45 +77,68 @@ function TrialScreen({
   onDone: (log: TrialLog) => void;
 }) {
   const [ratings, setRatings] = useState<(number | null)[]>(() => trial.answers.map(() => null));
+  const [current, setCurrent] = useState(0);
   const [sent, setSent] = useState(false);
+  const ratingsRef = useRef(ratings);
+  ratingsRef.current = ratings;
   const onset = useRef<number | null>(null);
   const onsetAt = useRef('');
-  const stats = useRef(
-    trial.answers.map(() => ({ first: null as number | null, final: null as number | null, n: 0, clicks: [] as { t: number; v: number }[] })),
+  const nBack = useRef(0);
+  const stats = useRef<AnswerStat[]>(
+    trial.answers.map(() => ({
+      shownAt: null,
+      views: 0,
+      first: null,
+      final: null,
+      finalTrial: null,
+      n: 0,
+      clicks: [],
+      changedOnRevisit: false,
+    })),
   );
 
-  // 문항이 실제로 화면에 그려진 시점을 기준(0 ms)으로 삼습니다.
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        onset.current = performance.now();
-        onsetAt.current = new Date().toISOString();
-      });
-    });
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
-  }, []);
-
-  const elapsed = () => {
+  const now = () => {
+    const t = performance.now();
     if (onset.current == null) {
-      onset.current = performance.now();
+      onset.current = t;
       onsetAt.current = new Date().toISOString();
     }
-    return performance.now() - onset.current;
+    return t - onset.current;
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // 답변이 실제로 화면에 그려진 시점을 기록 (첫 답변이 그려진 순간 = 문항 제시 기준 0 ms)
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      const t = now();
+      const s = stats.current[current];
+      if (s.shownAt == null) s.shownAt = t;
+      s.views += 1;
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
+
   const rate = (i: number, v: number) => {
-    const t = elapsed();
+    const t = now();
     const s = stats.current[i];
-    if (s.first == null) s.first = t;
-    s.final = t;
+    const rel = t - (s.shownAt ?? t);
+    const prev = ratingsRef.current[i];
+    if (s.views > 1 && prev != null && prev !== v) s.changedOnRevisit = true;
+    if (s.first == null) s.first = rel;
+    s.final = rel;
+    s.finalTrial = t;
     s.n += 1;
     s.clicks.push({ t: Math.round(t), v });
     setRatings((r) => r.map((x, j) => (j === i ? v : x)));
+  };
+
+  const move = (i: number, via: NavVia) => {
+    if (via === 'back') nBack.current += 1;
+    setCurrent(i);
   };
 
   const complete = ratings.every((r) => r != null);
@@ -106,30 +146,39 @@ function TrialScreen({
   const next = () => {
     if (!complete || sent) return;
     setSent(true);
-    const answers: AnswerLog[] = trial.answers.map((a, i) => ({
-      key: a.key,
-      text: a.text,
-      position: i + 1,
-      rating: ratings[i],
-      rtFirstMs: stats.current[i].first,
-      rtFinalMs: stats.current[i].final,
-      nClicks: stats.current[i].n,
-      clicks: stats.current[i].clicks,
-    }));
-    onDone({ trial, order, onsetAt: onsetAt.current, durationMs: elapsed(), answers, resumed });
+    const answers: AnswerLog[] = trial.answers.map((a, i) => {
+      const s = stats.current[i];
+      return {
+        key: a.key,
+        text: a.text,
+        position: i + 1,
+        rating: ratings[i],
+        shownAtMs: s.shownAt,
+        rtFirstMs: s.first,
+        rtFinalMs: s.final,
+        rtFinalTrialMs: s.finalTrial,
+        nClicks: s.n,
+        nViews: s.views,
+        changedOnRevisit: s.changedOnRevisit,
+        clicks: s.clicks,
+      };
+    });
+    onDone({ trial, order, onsetAt: onsetAt.current, durationMs: now(), answers, resumed, nBack: nBack.current });
   };
 
   return (
-    <Page meta={`실험 ${exp}`} progress={{ current: order, total }}>
+    <Page meta={EXPS.length > 1 ? `실험 ${exp}` : undefined} progress={{ current: order, total }}>
       <QuestionBox text={trial.stimulus} />
-      <div className="answers">
-        {trial.answers.map((a, i) => (
-          <AnswerCard key={a.key} text={a.text} value={ratings[i]} onChange={(v) => rate(i, v)} />
-        ))}
-      </div>
+      <AnswerCarousel
+        answers={trial.answers.map((a) => a.text)}
+        values={ratings}
+        index={current}
+        onIndex={move}
+        onRate={rate}
+      />
       <Actions center>
         <Button disabled={!complete || sent} onClick={next}>
-          다음
+          다음 문항
         </Button>
       </Actions>
     </Page>

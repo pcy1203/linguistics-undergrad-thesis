@@ -73,7 +73,7 @@ export function SurveyScreen({ onSubmit }: { onSubmit: (s: Survey) => Promise<vo
   return (
     <Page>
       <div className="intro">
-        <h1 className="title">실험 2가 끝났습니다.</h1>
+        <h1 className="title">실험이 끝났습니다.</h1>
         <Lines lines={['아래 설문에 응답한 뒤 제출하면 참여가 마무리됩니다.']} className="body" />
       </div>
       <div className="form">

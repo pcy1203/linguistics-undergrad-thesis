@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CONFIG, GROUPS, IS_TEST, RESET } from './config';
+import { CONFIG, EXPS, GROUPS, IS_TEST, RESET } from './config';
 import { loadCsv, type Sheet } from './lib/csv';
 import { buildTrials, validateSheet, type ExpId } from './lib/design';
 import {
@@ -55,11 +55,14 @@ export default function App() {
       return;
     }
 
-    Promise.all([loadCsv(CONFIG.csvUrl[1]), loadCsv(CONFIG.csvUrl[2])])
-      .then(([s1, s2]) => {
-        const problems = [...validateSheet(s1, 1, GROUPS), ...validateSheet(s2, 2, GROUPS)];
+    Promise.all(EXPS.map((exp) => loadCsv(CONFIG.csvUrl[exp])))
+      .then((loaded) => {
+        const empty: Sheet = { rows: [], fields: [] };
+        const byExp: Record<ExpId, Sheet> = { 1: empty, 2: empty };
+        EXPS.forEach((exp, k) => (byExp[exp] = loaded[k]));
+        const problems = EXPS.flatMap((exp) => validateSheet(byExp[exp], exp, GROUPS));
         if (problems.length) console.warn('[csv] 점검 결과\n' + problems.join('\n'));
-        sheets.current = { 1: s1, 2: s2 };
+        sheets.current = byExp;
         setView('consent');
       })
       .catch((e) => {
@@ -90,10 +93,10 @@ export default function App() {
     const now = new Date().toISOString();
     const { code, group, source } = await assignParticipant();
     const plan = {
-      1: buildTrials(sheets.current[1], group, 1),
-      2: buildTrials(sheets.current[2], group, 2),
+      1: EXPS.includes(1) ? buildTrials(sheets.current[1], group, 1) : [],
+      2: EXPS.includes(2) ? buildTrials(sheets.current[2], group, 2) : [],
     };
-    if (!plan[1].length || !plan[2].length) {
+    if (EXPS.some((exp) => !plan[exp].length)) {
       setError(`${group}군에 해당하는 문항을 찾지 못했습니다. CSV의 group 열을 확인해 주세요.`);
       setView('error');
       return;
@@ -142,7 +145,7 @@ export default function App() {
     const s = saved.current!;
     const bt = s.session.blockTimes[exp];
     if (bt && !bt.finishedAt) bt.finishedAt = new Date().toISOString();
-    go(exp === 1 ? 'transition' : 'survey');
+    go(exp === 1 && EXPS.includes(2) ? 'transition' : 'survey');
   };
 
   const submit = async (survey: Survey) => {
@@ -169,7 +172,8 @@ export default function App() {
       return <Consent onAgree={agree} busy={assigning} />;
     case 'resume': {
       const exp = s ? expOf(s.stage) : null;
-      const meta = s && exp ? `실험 ${exp} · ${Math.min(s.index[exp] + 1, s.plan[exp].length)} / ${s.plan[exp].length}` : '';
+      const pos = s && exp ? `${Math.min(s.index[exp] + 1, s.plan[exp].length)} / ${s.plan[exp].length}` : '';
+      const meta = s && exp ? (EXPS.length > 1 ? `실험 ${exp} · ${pos}` : `${pos} 문항`) : '';
       return <Resume meta={meta} onContinue={resume} />;
     }
     case 'guide':

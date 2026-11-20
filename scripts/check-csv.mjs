@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import Papa from 'papaparse';
 
 const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F'];
-const FILES = { 1: 'public/data/experiment1.csv', 2: 'public/data/experiment2.csv' };
+const FILES = { 1: 'public/data/experiment.csv' };
 let failed = false;
 
 for (const [exp, path] of Object.entries(FILES)) {
@@ -16,7 +16,7 @@ for (const [exp, path] of Object.entries(FILES)) {
   const text = readFileSync(path, 'utf8').replace(/^﻿/, '');
   const { data, errors, meta } = Papa.parse(text, { header: true, skipEmptyLines: 'greedy', transformHeader: (h) => h.trim() });
   if (errors.length) {
-    console.error(`✗ 실험 ${exp}: CSV 형식 오류 (${errors[0].row}행) ${errors[0].message}`);
+    console.error(`✗ ${path}: CSV 형식 오류 (${errors[0].row}행) ${errors[0].message}`);
     failed = true;
     continue;
   }
@@ -45,11 +45,11 @@ for (const [exp, path] of Object.entries(FILES)) {
 
   if (problems.length) {
     failed = true;
-    console.error(`✗ 실험 ${exp} (${path})`);
+    console.error(`✗ ${path} (${path})`);
     problems.slice(0, 30).forEach((p) => console.error('   - ' + p));
     if (problems.length > 30) console.error(`   … 외 ${problems.length - 30}건`);
   } else {
-    console.log(`✓ 실험 ${exp}: 집단별 ${[...sizes][0]}문항, 답변 열 ${answerCols.length}개 (${answerCols.join(', ')})`);
+    console.log(`✓ ${path}: 집단별 ${[...sizes][0]}문항, 답변 열 ${answerCols.length}개 (${answerCols.join(', ')})`);
   }
 }
 

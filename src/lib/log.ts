@@ -1,18 +1,26 @@
-import { APP_VERSION, CONFIG, FORCED_GROUP, GROUPS, IS_TEST } from '../config';
+import { APP_VERSION, CONFIG, EXPS, FORCED_GROUP, GROUPS, IS_TEST } from '../config';
 import type { ExpId, Trial } from './design';
 import { randomInt } from './random';
 
 export interface AnswerLog {
   key: string;
   text: string;
-  /** 화면에 보인 위치 (1부터) */
+  /** 제시된 순서 (1부터) */
   position: number;
   rating: number | null;
-  /** 문항이 화면에 나온 시점부터 이 답변의 점수를 처음 누른 시점까지 */
+  /** 이 답변이 처음 화면에 나타난 시점 (문항 제시 기준 ms) */
+  shownAtMs: number | null;
+  /** 이 답변이 처음 나타난 시점부터 점수를 처음 누른 시점까지 */
   rtFirstMs: number | null;
-  /** 문항이 화면에 나온 시점부터 이 답변의 점수를 마지막으로 누른 시점까지 (최종 응답 시간) */
+  /** 이 답변이 처음 나타난 시점부터 점수를 마지막으로 누른 시점까지 (최종 응답 시간) */
   rtFinalMs: number | null;
+  /** 문항 제시 시점부터 이 답변의 점수를 마지막으로 누른 시점까지 */
+  rtFinalTrialMs: number | null;
   nClicks: number;
+  /** 이 답변이 화면에 나타난 횟수 (2 이상이면 ‹ 로 돌아와 다시 본 것) */
+  nViews: number;
+  /** ‹ 로 돌아와서 점수를 바꿨는지 */
+  changedOnRevisit: boolean;
   /** 이 답변에서 누른 기록 전체: 문항 제시 후 경과 ms 와 고른 점수 */
   clicks: { t: number; v: number }[];
 }
@@ -26,6 +34,8 @@ export interface TrialLog {
   answers: AnswerLog[];
   /** 이 문항을 푸는 도중에 세션이 끊겼다가 복구된 경우 true (응답 시간 해석 주의) */
   resumed: boolean;
+  /** 이 문항에서 ‹ (이전 답변) 버튼을 누른 횟수 */
+  nBack: number;
 }
 
 export interface Survey {
@@ -135,9 +145,14 @@ function detailRows(s: Session, t: TrialLog) {
     rating: a.rating ?? '',
     rt_final_ms: ms(a.rtFinalMs),
     rt_first_ms: ms(a.rtFirstMs),
+    shown_at_ms: ms(a.shownAtMs),
+    rt_final_from_trial_ms: ms(a.rtFinalTrialMs),
     n_clicks: a.nClicks,
+    n_views: a.nViews,
+    changed_on_revisit: a.changedOnRevisit,
     click_log: a.clicks.map((c) => `${c.t}ms→${c.v}`).join(', '),
     answer_order: t.answers.map((x) => x.key).join(' > '),
+    n_back: t.nBack,
     resumed: t.resumed,
     trial_onset_at: t.onsetAt,
     trial_duration_ms: ms(t.durationMs),
@@ -177,7 +192,7 @@ export function toSheets(s: Session) {
   ];
 
   // 2) 제시 순서: 1명 × 실험 1행 — t01..t24 칸에 "아이템번호 (조건)"
-  const orders = ([1, 2] as ExpId[]).map((exp) => {
+  const orders = EXPS.map((exp) => {
     const row: Record<string, string | number | boolean> = { ...base, experiment: exp };
     byExp(exp).forEach((t) => {
       row[`t${pad2(t.order)}`] = `${t.trial.item} (${condLabel(t.trial)})`;
@@ -188,8 +203,8 @@ export function toSheets(s: Session) {
   // 3) 응답 결과: 1문항당 1행 — 답변 종류별 점수가 한눈에 보이게
   const keys: string[] = [];
   for (const t of s.trials) for (const k of t.trial.answerKeys) if (!keys.includes(k)) keys.push(k);
-  keys.sort(); // wh-… → yn-… 순서로 열 고정
-  const results = ([1, 2] as ExpId[]).flatMap((exp) =>
+  // 열 순서는 CSV 답변 열 순서 그대로 (matrix → embedded → indefinite)
+  const results = EXPS.flatMap((exp) =>
     byExp(exp).map((t) => {
       const row: Record<string, string | number | boolean> = {
         ...base,
@@ -204,13 +219,14 @@ export function toSheets(s: Session) {
       for (const k of keys) row[k] = t.answers.find((a) => a.key === k)?.rating ?? '';
       for (const k of keys) row[`${k}_rt_ms`] = ms(t.answers.find((a) => a.key === k)?.rtFinalMs ?? null);
       row.trial_duration_ms = ms(t.durationMs);
+      row.n_back = t.nBack;
       row.resumed = t.resumed;
       return row;
     }),
   );
 
   // 4) 응답 세부: 답변 1개당 1행 — 제시 위치, 응답 시간, 클릭 기록 전체
-  const details = ([1, 2] as ExpId[]).flatMap((exp) => byExp(exp).flatMap((t) => detailRows(s, t)));
+  const details = EXPS.flatMap((exp) => byExp(exp).flatMap((t) => detailRows(s, t)));
 
   // 5) 추첨: 전화번호는 응답 데이터와 연결되지 않도록 참여자 ID 없이 따로
   const d = new Date();
@@ -240,8 +256,8 @@ export function interimPayload(s: Session, t: TrialLog) {
       group: s.group,
       is_test: s.isTest,
       status: '진행 중',
-      stage: `실험 ${t.trial.exp}`,
-      last_trial: `실험${t.trial.exp}-${pad2(t.order)}`,
+      stage: EXPS.length > 1 ? `실험 ${t.trial.exp}` : '실험',
+      last_trial: EXPS.length > 1 ? `실험${t.trial.exp}-${pad2(t.order)}` : pad2(t.order),
       trials_done: s.trials.length,
       resume_count: s.resumeCount,
       last_updated: now,
